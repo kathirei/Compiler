@@ -10,11 +10,12 @@ C\* is a small Turing-complete subset of C that includes dereferencing (the `*` 
 
 C\* Keywords: `int`, `while`, `if`, `else`, `return`, `void`
 
-C\* Symbols: `=`, `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `,`, `(`, `)`, `{`, `}`, `;`, integer, identifier, character, string
+C\* Symbols: `=`, `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`,`<<`,`<=`, `>`, `>>`,`>=`, `,`, `(`, `)`, `{`, `}`, `;`, integer, identifier, character, string
 
 with:
 
 ```
+
 integer    = digit { digit } .
 
 identifier = letter { letter | digit | "_" } .
@@ -27,7 +28,13 @@ string     = """ { printable_character } """ .
 and:
 
 ```
-digit  = "0" | ... | "9" .
+binaryDigit = "0" | "1" .
+
+octalDigit = "0" | ... | "7" .
+
+hexDigit = "0" | ... | "9" | "A" |...| "F" .
+
+digit  =  "0" | ... | "9" .
 
 letter = "a" | ... | "z" | "A" | ... | "Z" .
 ```
@@ -55,7 +62,9 @@ statement        = call ";" | while | if | return ";" |
 
 call             = identifier "(" [ expression { "," expression } ] ")" .
 
-expression       = simpleExpression [ ( "==" | "!=" | "<" | ">" | "<=" | ">=" ) simpleExpression ] .
+expression       = shiftExpression { ( "==" | "!=" | "<" | ">" | "<=" | ">=" ) shiftExpression } .
+
+shiftExpression  = simpleExpression { ( "<<" | ">>" )  simpleExpression } .
 
 simpleExpression = [ "-" ] term { ( "+" | "-" ) term } .
 
