@@ -154,6 +154,11 @@ int CHAR_EXCLAMATION  = '!';
 int CHAR_PERCENTAGE   = '%';
 int CHAR_SINGLEQUOTE  = 39; // ASCII code 39 = '
 int CHAR_DOUBLEQUOTE  = '"';
+//Assignment5
+int CHAR_AND          = '&';
+int CHAR_OR           = '|';
+int CHAR_NOT          = '~';
+
 
 int SIZEOFINT     = 4; // must be the same as WORDSIZE
 int SIZEOFINTSTAR = 4; // must be the same as WORDSIZE
@@ -225,7 +230,7 @@ void initLibrary() {
 
   // compute INT_MAX and INT_MIN without integer overflows
   INT_MAX = (twoToThePowerOf(30) - 1) * 2 + 1;
-  INT_MIN = -INT_MAX - 1;
+  INT_MIN = ~INT_MAX; //-INT_MAX - 1;
 
   INT16_MAX = twoToThePowerOf(15) - 1;
   INT16_MIN = -INT16_MAX - 1;
@@ -319,6 +324,10 @@ int SYM_STRING       = 27; // string
 //Assignment4
 int SYM_LEFTSHIFT    = 28; // <<
 int SYM_RIGHTSHIFT   = 29; // >>
+//Assignment5
+int SYM_BITWISE_AND  = 30; //"&"
+int SYM_BITWISE_OR   = 31; //"|"
+int SYM_BITWISE_NOT  = 32; //"~"
 
 int* SYMBOLS; // strings representing symbols
 
@@ -355,7 +364,7 @@ int  sourceFD   = 0;        // file descriptor of open source file
 // ------------------------- INITIALIZATION ------------------------
 
 void initScanner () {
-  SYMBOLS = malloc(30 * SIZEOFINTSTAR);
+  SYMBOLS = malloc(33 * SIZEOFINTSTAR);
 
   *(SYMBOLS + SYM_IDENTIFIER)   = (int) "identifier";
   *(SYMBOLS + SYM_INTEGER)      = (int) "integer";
@@ -388,6 +397,10 @@ void initScanner () {
   //Assignment4
   *(SYMBOLS + SYM_LEFTSHIFT)    = (int) "<<";
   *(SYMBOLS + SYM_RIGHTSHIFT)    = (int) ">>";
+  //Assignment5
+  *(SYMBOLS + SYM_BITWISE_AND)  = (int) "&";
+  *(SYMBOLS + SYM_BITWISE_OR)   = (int) "|";
+  *(SYMBOLS + SYM_BITWISE_NOT)  = (int) "~";
 
   character = CHAR_EOF;
   symbol    = SYM_EOF;
@@ -529,6 +542,9 @@ int  gr_call(int* procedure);
 int  gr_factor();
 int  gr_term();
 int  gr_simpleExpression();
+//Assignment5
+int  gr_shiftExpression();
+int  gr_comparisonExpression();
 int  gr_expression();
 void gr_while();
 void gr_if();
@@ -717,10 +733,13 @@ int OP_BNE     = 0x5;//hexadeziml representation of 5
 int OP_ADDIU   = 0x9;//hexadeziml representation of 9
 int OP_LW      = 0x23;//hexadeziml representation of 35
 int OP_SW      = 0x2B;//hexadeziml representation of 43
+//Assignment5
+int OP_ANDI    = 0b001100;//12 
+int OP_ORI     = 0b001101;//13
 
 int* OPCODES; // strings representing MIPS opcodes
 
-int FCT_NOP     = 0x0;//hexadeziml representation of 0
+int FCT_NOP     = 0x0;//hexadezimal representation of 0
 int FCT_JR      = 0x8;//hexadeziml representation of 8
 int FCT_SYSCALL = 0xC;//hexadeziml representation of 12
 int FCT_MFHI    = 0x10;//hexadeziml representation of 16
@@ -735,6 +754,10 @@ int FCT_SLL     = 0x0;
 int FCT_SRL     = 0x2;
 int FCT_SLLV    = 0x4;
 int FCT_SRLV    = 0x6;
+//Assignment5
+int FCT_AND     = 0b100100;//36
+int FCT_OR      = 0b100101;//37
+int FCT_NOR     = 0b100111;//39
 
 int* FUNCTIONS; // strings representing MIPS functions
 
@@ -762,7 +785,10 @@ void initDecoder() {
   *(OPCODES + OP_ADDIU)   = (int) "addiu";
   *(OPCODES + OP_LW)      = (int) "lw";
   *(OPCODES + OP_SW)      = (int) "sw";
-
+  //Assignment5
+  *(OPCODES + OP_ANDI)      = (int) "andi";
+  *(OPCODES + OP_ORI)      = (int) "ori";
+  
   FUNCTIONS = malloc(43 * SIZEOFINTSTAR);
 
   //*(FUNCTIONS + FCT_NOP)     = (int) "nop";
@@ -780,6 +806,10 @@ void initDecoder() {
   *(FUNCTIONS + FCT_SRL)     = (int) "srl";
   *(FUNCTIONS + FCT_SLLV)    = (int) "sllv";
   *(FUNCTIONS + FCT_SRLV)    = (int) "srlv";
+  //Assignment5
+  *(FUNCTIONS + FCT_AND)     = (int) "and";
+  *(FUNCTIONS + FCT_OR)     = (int) "or";
+  *(FUNCTIONS + FCT_NOR)     = (int) "nor";
 }
 
 // -----------------------------------------------------------------
@@ -1001,6 +1031,12 @@ void fct_sll();
 void fct_srl();
 void fct_sllv();
 void fct_srlv();
+//Assignment5
+void fct_and();
+void op_andi();
+void fct_or();
+void op_ori();
+void fct_nor();
 
 // -----------------------------------------------------------------
 // -------------------------- INTERPRETER --------------------------
@@ -1358,34 +1394,29 @@ int rightShift(int n, int b) {
     return 0;
 }
 
-//Assignment4
 int loadCharacter(int* s, int i) {
   // assert: i >= 0
   int a;
-
+  int b;
   // a is the index of the word where the to-be-loaded i-th character in s is
   a = i / SIZEOFINT;
-
+  b = 0xFF << (i % SIZEOFINT) * 8;
   // shift to-be-loaded character to the left resetting all bits to the left
   // then shift to-be-loaded character all the way to the right and return
-  //return rightShift(leftShift(*(s + a), ((SIZEOFINT - 1) - (i % SIZEOFINT)) * 8), (SIZEOFINT - 1) * 8);
-  return rightShift((*(s + a) << ((SIZEOFINT - 1) - (i % SIZEOFINT)) * 8), (SIZEOFINT - 1) * 8);
-}
+  return rightShift(*(s + a) & b , (i % SIZEOFINT) * 8);
+ }
 
-//Assignment4
 int* storeCharacter(int* s, int i, int c) {
   // assert: i >= 0, all characters are 7-bit
   int a;
-
+  int b;
   // a is the index of the word where the with c
   // to-be-overwritten i-th character in s is
   a = i / SIZEOFINT;
-
+  b = 0xFF << (i % SIZEOFINT) * 8;
   // subtract the to-be-overwritten character resetting its bits in s
   // then add c setting its bits at the i-th position in s
-  //*(s + a) = (*(s + a) - leftShift(loadCharacter(s, i), (i % SIZEOFINT) * 8)) + leftShift(c, (i % SIZEOFINT) * 8);
-  *(s + a) = (*(s + a) - (loadCharacter(s, i) << (i % SIZEOFINT) * 8)) + (c << (i % SIZEOFINT) * 8);
-  
+  *(s + a) = (*(s + a) & ~(b)) | (c << (i % SIZEOFINT) * 8);
   return s;
 }
 
@@ -2340,7 +2371,21 @@ void getSymbol() {
         getCharacter();
 
         symbol = SYM_MOD;
+	//Assignment5
+	  } else if (character == CHAR_AND){
+		getCharacter();
+		
+		symbol = SYM_BITWISE_AND;
+	  } else if (character == CHAR_NOT){
+		getCharacter();
+		
+		symbol = SYM_BITWISE_NOT;
+	  } else if (character == CHAR_OR){
+		getCharacter();
+		
+		symbol = SYM_BITWISE_OR;
 
+		
       } else {
         printLineNumber((int*) "error", lineNumber);
         print((int*) "found unknown character ");
@@ -2492,6 +2537,9 @@ int isExpression() {
     return 1;
   else if (symbol == SYM_LPARENTHESIS)
     return 1;
+  //Assignment5
+  else if (symbol == SYM_BITWISE_NOT)
+	return 1;
   else if (symbol == SYM_IDENTIFIER)
     return 1;
   else if (symbol == SYM_INTEGER)
@@ -2558,6 +2606,9 @@ int lookForFactor() {
   else if (symbol == SYM_ASTERISK)
     return 0;
   else if (symbol == SYM_IDENTIFIER)
+    return 0;
+  //Assignment5
+  else if (symbol == SYM_BITWISE_NOT)
     return 0;
   else if (symbol == SYM_INTEGER)
     return 0;
@@ -2760,7 +2811,7 @@ void load_integer(int value) {
     else if (value < twoToThePowerOf(28)) {
       // load 14 msbs of a 28-bit number first
       emitIFormat(OP_ADDIU, REG_ZR, currentTemporary(), rightShift(value, 14));
-
+		//fehler?
       // shift left by 14 bits
       emitLeftShiftBy(14);
 
@@ -3031,6 +3082,34 @@ int gr_factor() {
 
     type = INT_T;
 
+  //Assignment5
+  }else if (symbol == SYM_BITWISE_NOT) {
+    getSymbol();
+
+    // ["~"] identifier
+    if (symbol == SYM_IDENTIFIER) {
+      type = load_variable(identifier);
+
+      getSymbol();
+
+    // ~ "(" expression ")"
+    } else if (symbol == SYM_LPARENTHESIS) {
+      getSymbol();
+
+      type = gr_expression();
+
+      if (symbol == SYM_RPARENTHESIS)
+        getSymbol();
+      else
+        syntaxErrorSymbol(SYM_RPARENTHESIS);
+    } else
+      syntaxErrorUnexpected();
+
+    // nor
+    emitRFormat(OP_SPECIAL, currentTemporary(), REG_ZR, currentTemporary(), 0, FCT_NOR);
+
+    type = INT_T;
+
   // identifier?
   } else if (symbol == SYM_IDENTIFIER) {
     variableOrProcedureName = identifier;
@@ -3173,9 +3252,9 @@ int gr_simpleExpression() {
       // even though 0-INT_MIN == INT_MIN
       sign = 0;
     }
-  } else
+  } else{
     sign = 0;
-
+  }
   ltype = gr_term();
 
   // assert: allocatedTemporaries == n + 1
@@ -3276,7 +3355,8 @@ int  gr_shiftExpression(){
   return ltype;
 }
 
-int gr_expression() {
+//Assignment5
+int gr_comparisonExpression() {
   int ltype;
   int operatorSymbol;
   int rtype;
@@ -3302,6 +3382,8 @@ int gr_expression() {
 
     if (operatorSymbol == SYM_EQUALITY) {
       // subtract, if result = 0 then 1, else 0
+
+
       emitRFormat(OP_SPECIAL, previousTemporary(), currentTemporary(), previousTemporary(), 0, FCT_SUBU);
 
       tfree(1);
@@ -3313,6 +3395,8 @@ int gr_expression() {
 
     } else if (operatorSymbol == SYM_NOTEQ) {
       // subtract, if result = 0 then 0, else 1
+
+
       emitRFormat(OP_SPECIAL, previousTemporary(), currentTemporary(), previousTemporary(), 0, FCT_SUBU);
 
       tfree(1);
@@ -3324,18 +3408,24 @@ int gr_expression() {
 
     } else if (operatorSymbol == SYM_LT) {
       // set to 1 if a < b, else 0
+
+
       emitRFormat(OP_SPECIAL, previousTemporary(), currentTemporary(), previousTemporary(), 0, FCT_SLT);
 
       tfree(1);
 
     } else if (operatorSymbol == SYM_GT) {
       // set to 1 if b < a, else 0
+
+
       emitRFormat(OP_SPECIAL, currentTemporary(), previousTemporary(), previousTemporary(), 0, FCT_SLT);
 
       tfree(1);
 
     } else if (operatorSymbol == SYM_LEQ) {
       // if b < a set 0, else 1
+
+
       emitRFormat(OP_SPECIAL, currentTemporary(), previousTemporary(), previousTemporary(), 0, FCT_SLT);
 
       tfree(1);
@@ -3347,6 +3437,8 @@ int gr_expression() {
 
     } else if (operatorSymbol == SYM_GEQ) {
       // if a < b set 0, else 1
+
+
       emitRFormat(OP_SPECIAL, previousTemporary(), currentTemporary(), previousTemporary(), 0, FCT_SLT);
 
       tfree(1);
@@ -3357,6 +3449,62 @@ int gr_expression() {
       emitIFormat(OP_ADDIU, REG_ZR, currentTemporary(), 0);
     }
   }
+
+  // assert: allocatedTemporaries == n + 1
+
+  return ltype;
+}
+
+int isBitwiseAndOr(){
+  if(symbol == SYM_BITWISE_AND){
+    return 1;
+  }else if(symbol == SYM_BITWISE_OR){
+    return 1;
+  //}else if(symbol == SYM_BITWISE_NOT){
+    //return 1;
+  }else{
+    return 0;
+  }
+}
+
+
+int gr_expression() {
+  int ltype;
+  int operatorSymbol;
+  int rtype;
+
+  // assert: n = allocatedTemporaries
+
+  ltype = gr_comparisonExpression();
+
+  // assert: allocatedTemporaries == n + 1
+
+  //optional: ==, !=, <, >, <=, >= simpleExpression
+  while (isBitwiseAndOr()) { //davor if
+    operatorSymbol = symbol;
+
+    getSymbol();
+
+    rtype = gr_comparisonExpression();
+
+    // assert: allocatedTemporaries == n + 2
+
+    //if (ltype != rtype)
+      //typeWarning(ltype, rtype);
+
+    //Assignment5
+    if (operatorSymbol == SYM_BITWISE_AND) {
+
+      emitRFormat(OP_SPECIAL, currentTemporary(), previousTemporary(), previousTemporary(), 0, FCT_AND);
+
+    } else if (operatorSymbol == SYM_BITWISE_OR) {
+
+      emitRFormat(OP_SPECIAL, currentTemporary(), previousTemporary(), previousTemporary(), 0, FCT_OR);
+
+    }
+	
+	tfree(1);
+ }
 
   // assert: allocatedTemporaries == n + 1
 
@@ -4343,7 +4491,8 @@ int encodeRFormat(int opcode, int rs, int rt, int rd, int shamt, int function) {
 
 
   //return leftShift(leftShift(leftShift(leftShift(leftShift(opcode, 5) + rs, 5) + rt, 5) + rd, 5) + shamt, 6) + function;
-  return (((((opcode << 5) + rs << 5) + rt << 5) + rd << 5) + shamt << 6) + function;
+  //return (((((opcode << 5) + rs << 5) + rt << 5) + rd << 5) + shamt << 6) + function;
+  return ((((opcode << 5 | rs) << 5 | rt) << 5 | rd) << 5 | shamt) << 6 | function;
 
 }
 
@@ -4364,7 +4513,9 @@ int encodeIFormat(int opcode, int rs, int rt, int immediate) {
     immediate = immediate + twoToThePowerOf(16);
 
   //return leftShift(leftShift(leftShift(opcode, 5) + rs, 5) + rt, 16) + immediate;
-  return (((opcode << 5) + rs << 5) + rt << 16) + immediate;
+  //return (((opcode << 5) + rs << 5) + rt << 16) + immediate;
+  return ((opcode << 5 | rs) << 5 | rt) << 16 | immediate;
+
 }
 
 // --------------------------------------------------------------
@@ -4380,7 +4531,9 @@ int encodeJFormat(int opcode, int instr_index) {
   
   //return leftShift(opcode, 26) + instr_index;
     //Assignment4
-	return (opcode << 26) + instr_index;
+	//return (opcode << 26) + instr_index;
+	return (opcode << 26) | instr_index;
+
 }
 
 // -----------------------------------------------------------------
@@ -4393,32 +4546,44 @@ int getOpcode(int instruction) {
 
 
 //Assignment4 leftshifts changed
+//Assignment5 masking
 int getRS(int instruction) {
-  return rightShift((instruction << 6), 27);
+  //return rightShift((instruction << 6), 27);
+  //return rightShift((instruction & 3E00000), 21) ;
+  //rightshift um 27-6, & mit 0b11111 (rs sind 5 Stellen) 
+  return rightShift(instruction, 21) & 0b11111;
 }
 
 int getRT(int instruction) {
-  return rightShift((instruction << 11), 27);
+  //return rightShift((instruction << 11), 27);
+  return rightShift(instruction, 16) & 0b11111;
 }
 
 int getRD(int instruction) {
-  return rightShift((instruction << 16), 27);
+  //return rightShift((instruction << 16), 27);
+  return rightShift(instruction, 11) & 0b11111;
 }
 
 int getShamt(int instruction) {
-      return rightShift((instruction << 21), 27);
-    }
+  //return rightShift((instruction << 21), 27);
+  return rightShift(instruction, 6) & 0b11111;
+}
 
 int getFunction(int instruction) {
-  return rightShift((instruction << 26), 26);
+  //return rightShift((instruction << 26), 26);
+  //function: 6 bit
+  return instruction & 0b111111;
 }
 
 int getImmediate(int instruction) {
-  return rightShift((instruction << 16), 16);
+  //return rightShift((instruction << 16), 16);
+  //last 16 bits
+  return instruction & 0xFFFF; //0b1111111111111111;
 }
 
 int getInstrIndex(int instruction) {
   return rightShift((instruction << 6), 6);
+  return instruction & 0x3FFFFFF; //0b26*1
 }
 
 int signExtend(int immediate) {
@@ -4432,9 +4597,9 @@ int signExtend(int immediate) {
 // --------------------------------------------------------------
 // 32 bit
 //
-// +------+-----+-----+-----+-----+------+
-// |opcode| rs  | rt  | rd  |00000|fction|
-// +------+-----+-----+-----+-----+------+
+// +------+-----+-----+-----+-----+--------+
+// |opcode| rs  | rt  | rd  |00000|function|
+// +------+-----+-----+-----+-----+--------+
 //    6      5     5     5     5     6
 void decodeRFormat() {
   rs          = getRS(ir);
@@ -5901,10 +6066,10 @@ void op_bne() {
 }
 
 
-int isNOP(){
+int isRegNOP(){
   if(rd == REG_ZR){
     if(rt == REG_ZR){
-      if(immediate == 0)
+      if(shamt == 0)
         return 1;
       else
         return 0;
@@ -5914,11 +6079,12 @@ int isNOP(){
     return 0;
 }
 
+
 //Assignment3
 //Shift word left logical
 //left-shift a word by a fixed number of bits
 void fct_sll(){
-  if(isNOP()){
+  if(isRegNOP()){
     fct_nop();
   }else{
     if (debug) {
@@ -6099,6 +6265,237 @@ void fct_srlv(){
         println();
     }
 }
+
+//Assignment5
+void fct_and(){
+
+    if (debug) {
+        printFunction(function);
+        print((int*) " ");
+        printRegister(rd);
+        print((int*) ",");
+        printRegister(rs);
+        print((int*) ",");
+        printRegister(rt);
+
+        if (interpret) {
+            print((int*) ": ");
+            printRegister(rd);
+            print((int*) "=");
+            printInteger(*(registers+rd));
+            print((int*) ",");
+            printRegister(rs);
+            print((int*) "=");
+            printInteger(*(registers+rs));
+            print((int*) ",");
+            printRegister(rs);
+            print((int*) "=");
+            printInteger(*(registers+rt));
+        }
+
+    }
+
+    if(interpret){
+        *(registers+rd) = *(registers+rs) & *(registers+rt);
+
+        pc = pc + WORDSIZE;
+    }
+
+    if (debug) {
+        if (interpret) {
+            print((int*) " -> ");
+            printRegister(rd);
+            print((int*) "=");
+            printInteger(*(registers+rd));
+        }
+        println();
+    }
+}
+
+//Assignment5
+void op_andi(){
+
+    if (debug) {
+        printOpcode(opcode);
+        print((int*) " ");
+        printRegister(rt);
+        print((int*) ",");
+        printRegister(rs);
+        print((int*) ",");
+        printInteger(immediate);
+
+        if (interpret) {
+            print((int*) ": ");
+            printRegister(rt);
+            print((int*) "=");
+            printInteger(*(registers+rt));
+            print((int*) ",");
+            printRegister(rs);
+            print((int*) "=");
+            printInteger(*(registers+rs));
+            print((int*) ",");
+            print((int*)"immediate:");
+            print((int*) "=");
+            printInteger(immediate);
+        }
+
+    }
+
+    if(interpret){
+        *(registers+rt) = *(registers+rs) & signExtend(immediate);
+
+        pc = pc + WORDSIZE;
+    }
+
+    if (debug) {
+        if (interpret) {
+            print((int*) " -> ");
+            printRegister(rt);
+            print((int*) "=");
+            printInteger(*(registers+rt));
+        }
+        println();
+    }
+}
+
+//Assignment5
+void fct_or(){
+
+    if (debug) {
+        printFunction(function);
+        print((int*) " ");
+        printRegister(rd);
+        print((int*) ",");
+        printRegister(rs);
+        print((int*) ",");
+        printRegister(rt);
+
+        if (interpret) {
+            print((int*) ": ");
+            printRegister(rd);
+            print((int*) "=");
+            printInteger(*(registers+rd));
+            print((int*) ",");
+            printRegister(rs);
+            print((int*) "=");
+            printInteger(*(registers+rs));
+            print((int*) ",");
+            printRegister(rt);
+            print((int*) "=");
+            printInteger(*(registers+rt));
+        }
+
+    }
+
+    if(interpret){
+        *(registers+rd) = *(registers+rs) | *(registers+rt);
+
+        pc = pc + WORDSIZE;
+    }
+
+    if (debug) {
+        if (interpret) {
+            print((int*) " -> ");
+            printRegister(rt);
+            print((int*) "=");
+            printInteger(*(registers+rt));
+        }
+        println();
+    }
+}
+
+//Assignment5
+void op_ori(){
+
+    if (debug) {
+        printOpcode(opcode);
+        print((int*) " ");
+        printRegister(rt);
+        print((int*) ",");
+        printRegister(rs);
+        print((int*) ",");
+        printInteger(immediate);
+
+        if (interpret) {
+            print((int*) ": ");
+            printRegister(rt);
+            print((int*) "=");
+            printInteger(*(registers+rt));
+            print((int*) ",");
+            printRegister(rs);
+            print((int*) "=");
+            printInteger(*(registers+rs));
+            print((int*) ",");
+            print((int*)"immediate:");
+            print((int*) "=");
+            printInteger(immediate);
+        }
+
+    }
+
+    if(interpret){
+        *(registers+rt) = *(registers+rs) | signExtend(immediate);
+
+        pc = pc + WORDSIZE;
+    }
+
+    if (debug) {
+        if (interpret) {
+            print((int*) " -> ");
+            printRegister(rt);
+            print((int*) "=");
+            printInteger(*(registers+rt));
+        }
+        println();
+    }
+}
+
+//Assignment5
+void fct_nor(){
+
+    if (debug) {
+        printFunction(function);
+        print((int*) " ");
+        printRegister(rd);
+        print((int*) ",");
+        printRegister(rs);
+        print((int*) ",");
+        printRegister(rt);
+
+        if (interpret) {
+            print((int*) ": ");
+            printRegister(rd);
+            print((int*) "=");
+            printInteger(*(registers+rd));
+            print((int*) ",");
+            printRegister(rs);
+            print((int*) "=");
+            printInteger(*(registers+rs));
+            print((int*) ",");
+            printRegister(rt);
+            print((int*) "=");
+            printInteger(*(registers+rt));
+        }
+
+    }
+
+    if(interpret){
+        *(registers+rd) = ~(*(registers+rs) | *(registers+rt));
+
+        pc = pc + WORDSIZE;
+    }
+
+    if (debug) {
+        if (interpret) {
+            print((int*) " -> ");
+            printRegister(rd);
+            print((int*) "=");
+            printInteger(*(registers+rd));
+        }
+        println();
+    }
+}
+
 
 void op_addiu() {
   if (debug) {
@@ -6636,7 +7033,7 @@ void execute() {
     printHexadecimal(ir, 8);
     print((int*) ": ");
   }
-
+	
   if (opcode == OP_SPECIAL) {
     //if (function == FCT_NOP)
       //fct_nop();
@@ -6659,17 +7056,25 @@ void execute() {
     else if (function == FCT_SYSCALL)
       fct_syscall();
 	//Assignment3
-	else if (function == FCT_SLL)
-		fct_sll();
 	else if (function == FCT_SLLV)
 		fct_sllv();
 	else if (function == FCT_SRL)
 		fct_srl();
 	else if (function == FCT_SRLV)
 		fct_srlv();
+	else if (function == FCT_SLL)
+		fct_sll();
+	//Assignment5
+	else if (function == FCT_AND)
+      fct_and();
+    else if (function == FCT_OR)
+      fct_or();
+    else if (function == FCT_NOR)
+      fct_nor();
     else
       throwException(EXCEPTION_UNKNOWNINSTRUCTION, 0);
-  } else if (opcode == OP_ADDIU)
+  
+  }else if (opcode == OP_ADDIU)
     op_addiu();
   else if (opcode == OP_LW)
     op_lw();
@@ -6683,6 +7088,11 @@ void execute() {
     op_jal();
   else if (opcode == OP_J)
     op_j();
+  //Assignment5
+  else if (opcode == OP_ANDI)
+    op_andi();
+  else if (opcode == OP_ORI)
+    op_ori();
   else
     throwException(EXCEPTION_UNKNOWNINSTRUCTION, 0);
 }
