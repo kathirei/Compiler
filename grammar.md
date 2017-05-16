@@ -42,7 +42,9 @@ letter = "a" | ... | "z" | "A" | ... | "Z" .
 C\* Grammar:
 
 ```
-cstar            = { type identifier [ "=" [ cast ] [ "-" ] literal ] ";" |
+cstar            = { type identifier  ( selector | [ "=" [ cast ] [ "-" ] literal ] ) ";" |
+                    structDefinition  |
+                    structDeclaration |        
                    ( "void" | type ) identifier procedure } .
 
 type             = "int" [ "*" ] .
@@ -54,10 +56,20 @@ literal          = integer | character .
 procedure        = "(" [ variable { "," variable } ] ")"
                     ( ";" | "{" { variable ";" } { statement } "}" ) .
 
-variable         = type identifier .
+selector  =  { "[" simpleExpression "]" } .
+
+struct_type      =  "struct" identifier "*" .
+
+variable         =  type identifier .
+
+structDeclaration = struct_type identifier ";" .
+
+structDefinition = "struct" identifier "{"
+                    { type identifier  ( selector | [ "=" [ cast ] [ "-" ] literal ] ) ";"  |
+                     structDeclaration }  "}" ";" .
 
 statement        = call ";" | while | if | return ";" |
-                   ( [ "*" ] identifier | "*" "(" expression ")" )
+                   ( [ "*" ] identifier |  identifier selector | "*" "(" expression ")" )
                      "=" expression ";" .
 
 call             = identifier "(" [ expression { "," expression } ] ")" .
@@ -73,7 +85,7 @@ simpleExpression = [ "-" ] term { ( "+" | "-" ) term } .
 term             =  factor { ( "*" | "/" | "%" ) factor } .
 
 factor           = [ cast ]
-                    (  [ "*" | "~" ] ( identifier | "(" expression ")" ) |
+                    (  [ "*" | "~" ] ( identifier selector | "(" expression ")" ) |
                       call |
                      literal |
                       string ) .
