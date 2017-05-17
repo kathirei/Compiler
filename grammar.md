@@ -42,12 +42,13 @@ letter = "a" | ... | "z" | "A" | ... | "Z" .
 C\* Grammar:
 
 ```
-cstar            = { type identifier  ( selector | [ "=" [ cast ] [ "-" ] literal ] ) ";" |
-                    structDefinition  |
-                    structDeclaration |        
-                   ( "void" | type ) identifier procedure } .
+cstar            = { type identifier [ "=" [ cast ] [ "-" ] literal ]  ";" |        
+                   ( "void" | type ) identifier procedure | type identifier { selector } ";" |
+                      "struct" identifier ( "*" identifier | structDef ) ";" } .
 
-type             = "int" [ "*" ] .
+type             = ( "int" [ "*" ] ) .
+
+struct          = "{" { ( type | "struct" identifier "*" ) identifier ";" } "}" .
 
 cast             = "(" type ")" .
 
@@ -56,17 +57,9 @@ literal          = integer | character .
 procedure        = "(" [ variable { "," variable } ] ")"
                     ( ";" | "{" { variable ";" } { statement } "}" ) .
 
-selector  =  { "[" simpleExpression "]" } .
-
-struct_type      =  "struct" identifier "*" .
+selector  =   "[" simpleExpression "]"  .
 
 variable         =  type identifier .
-
-structDeclaration = struct_type identifier ";" .
-
-structDefinition = "struct" identifier "{"
-                    { type identifier  ( selector | [ "=" [ cast ] [ "-" ] literal ] ) ";"  |
-                     structDeclaration }  "}" ";" .
 
 statement        = call ";" | while | if | return ";" |
                    ( [ "*" ] identifier |  identifier selector | "*" "(" expression ")" )
