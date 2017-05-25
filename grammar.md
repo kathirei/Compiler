@@ -10,7 +10,7 @@ C\* is a small Turing-complete subset of C that includes dereferencing (the `*` 
 
 C\* Keywords: `int`, `while`, `if`, `else`, `return`, `void`
 
-C\* Symbols: `=`, `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `<<`, `<=`, `>`, `>>`, `>=`,  `&`, `|`, `~` , `,`, `(`, `)`, `{`, `}`, `;`, integer, identifier, character, string
+C\* Symbols: `=`, `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `<<`, `<=`, `>`, `>>`, `>=`,  `&`, `|`, `~` , `,`, `(`, `)`, `{`, `}`, `;`, `->`, integer, identifier, character, string
 
 with:
 
@@ -44,7 +44,7 @@ C\* Grammar:
 ```
 cstar            = { type identifier [ "=" [ cast ] [ "-" ] literal ]  ";" |        
                    ( "void" | type ) identifier procedure | type identifier { selector } ";" |
-                      "struct" identifier ( "*" identifier | structDef ) ";" } .
+                      "struct" identifier ( "*" identifier | struct ) ";" } .
 
 type             = ( "int" [ "*" ] ) .
 
@@ -57,7 +57,7 @@ literal          = integer | character .
 procedure        = "(" [ variable { "," variable } ] ")"
                     ( ";" | "{" { variable ";" } { statement } "}" ) .
 
-selector  =   "[" simpleExpression "]"  .
+selector  =  { "[" simpleExpression "]" | ("->" identifier)}.
 
 variable         =  type identifier .
 
